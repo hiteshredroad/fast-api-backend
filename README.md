@@ -4,9 +4,7 @@ This is a small sample project demonstrating how to build an API with [MongoDB](
 
 
 ## TL;DR
-
-If you really don't want to read the [blog post](https://developer.mongodb.com/quickstart/python-quickstart-fastapi/) and want to get up and running,
-activate your Python virtualenv, and then run the following from your terminal (edit the `MONGODB_URL` first!):
+before running activate your Python virtualenv, and then run the following from your terminal (edit the `MONGODB_URL` first!):
 
 ```bash
 # Install the requirements:
