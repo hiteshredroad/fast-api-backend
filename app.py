@@ -1,15 +1,7 @@
 import os
-from typing import Optional, List
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from invoice import router as invoice_router
-
-app = FastAPI()
-
-
-from invoice import router as invoice_router
+from routers.invoice import router as invoice_router
 
 app = FastAPI()
 

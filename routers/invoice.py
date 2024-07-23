@@ -21,12 +21,10 @@ from datetime import datetime,timezone,timedelta
 # export MONGODB_URL="mongodb://localhost:27017/"
 # MONGODB_URL = ""
 
-# local host
-
-
+# include modal and method in same place
 
 # Import your database connection from app.py
-from database import db
+from database import invoicedb as db
 
 router = APIRouter()
 
