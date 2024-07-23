@@ -1,22 +1,33 @@
 import os
 from typing import Optional, List
 
-from fastapi import FastAPI, Body, HTTPException, status
-from fastapi.responses import Response
-from pydantic import ConfigDict, BaseModel, Field, EmailStr
-from pydantic.functional_validators import BeforeValidator
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from typing_extensions import Annotated
+from invoice import router as invoice_router
 
-from bson import ObjectId
-import motor.motor_asyncio
-from pymongo import ReturnDocument
-
+app = FastAPI()
 
 
 from invoice import router as invoice_router
 
 app = FastAPI()
+
+# frontend DNS
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://localhost:3000"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Include the invoice router
 app.include_router(invoice_router, prefix="/invoices", tags=["invoices"])

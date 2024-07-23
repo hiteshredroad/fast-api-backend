@@ -39,7 +39,7 @@ class InvoiceModel(BaseModel):
     invoice_number: Optional[str] = None
     name: str = Field(...)
     email: EmailStr = Field(...)
-    amount: float = Field(...)
+    amount: float = Field(...,gt=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     model_config = ConfigDict(
         populate_by_name=True,
@@ -119,8 +119,13 @@ async def list_invoices():
     # sort_order = DESCENDING  # or ASCENDING for ascending order
     # invoices = await invoice_collection.find().sort("created_at", sort_order).to_list(1000)
     # return InvoiceCollection(invoices=invoices)
-    return InvoiceCollection(invoices=await invoice_collection.find().to_list(1000))
-
+    try:
+        return InvoiceCollection(invoices=await invoice_collection.find().to_list(1000))
+    except HTTPException as http_exc:
+        return {"error": http_exc.detail, "status_code": http_exc.status_code}
+    except Exception as exc:
+        return {"error": str(exc), "status_code": "unknown"}
+    
 @router.get(
     "/get_pagination",
     response_description="List all invoices",
