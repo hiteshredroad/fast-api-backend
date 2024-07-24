@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, status,Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import Response,JSONResponse
 from pydantic import ConfigDict, BaseModel, Field, EmailStr
 from pydantic.functional_validators import BeforeValidator
@@ -8,6 +9,7 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime,timezone,timedelta
+from routers.utils import verify_token
 
 
 # https://fastapi.tiangolo.com/tutorial/
@@ -96,7 +98,7 @@ async def generate_invoice_number():
     status_code=status.HTTP_201_CREATED,
     response_model_by_alias=False,
 )
-async def create_invoice(invoice: InvoiceModel = Body(...)):
+async def create_invoice(invoice: InvoiceModel = Body(...),username: str = Depends(verify_token)):
     invoice_number = await generate_invoice_number()
     invoice.invoice_number = invoice_number
     new_invoice = await invoice_collection.insert_one(
@@ -113,7 +115,7 @@ async def create_invoice(invoice: InvoiceModel = Body(...)):
     response_model=InvoiceCollection,
     response_model_by_alias=False,
 )
-async def list_invoices():
+async def list_invoices(username: str = Depends(verify_token)):
     # sort_order = DESCENDING  # or ASCENDING for ascending order
     # invoices = await invoice_collection.find().sort("created_at", sort_order).to_list(1000)
     # return InvoiceCollection(invoices=invoices)
@@ -130,7 +132,7 @@ async def list_invoices():
     response_model=InvoiceCollection,
     response_model_by_alias=False,
 )
-async def list_pagination_invoice(skip: int = 0, limit: int = 10):
+async def list_pagination_invoice(skip: int = 0, limit: int = 10,username: str = Depends(verify_token)):
     return InvoiceCollection(invoices=await invoice_collection.find(skip=skip, limit=limit).to_list(limit-skip))
 
 @router.get(
@@ -139,7 +141,7 @@ async def list_pagination_invoice(skip: int = 0, limit: int = 10):
     response_model=InvoiceModel,
     response_model_by_alias=False,
 )
-async def show_invoice(invoice_number: str):
+async def show_invoice(invoice_number: str,username: str = Depends(verify_token)):
     if (
         invoice := await invoice_collection.find_one({"invoice_number": invoice_number})
     ) is not None:
@@ -152,7 +154,7 @@ async def show_invoice(invoice_number: str):
     response_model=InvoiceModel,
     response_model_by_alias=False,
 )
-async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body(...)):
+async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body(...),username: str = Depends(verify_token)):
     invoice = {
         k: v for k, v in invoice.model_dump(by_alias=True).items() if v is not None
     }
@@ -171,14 +173,14 @@ async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body
     raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
 
 @router.delete("/{invoice_number}", response_description="Delete an invoice")
-async def delete_invoice(invoice_number: str):
+async def delete_invoice(invoice_number: str,username: str = Depends(verify_token)):
     delete_result = await invoice_collection.delete_one({"invoice_number": invoice_number})
     if delete_result.deleted_count == 1:
         return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content={"message": f"Invoice {invoice_number} has been deleted successfully."}
             )
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        # return Response(status_code=status.HTTP_204_NO_CONTENT) we can not pass json in  204 status
     raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
 
 

@@ -6,16 +6,17 @@ import jwt
 import secrets
 import math
 from datetime import datetime, timedelta, timezone
+import requests
+from decouple import config
 
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
+SECRET_KEY = config('SECRET_KEY')
+ALGORITHM = config('ALGORITHM',default = "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 300
-
-FRAAPE_URL = "http://127.0.0.1:8001"
+FRAPPE_URL = config('FRAPPE_URL')
 
 
 router = APIRouter()
-client = FrappeClient(FRAAPE_URL)
+client = FrappeClient(FRAPPE_URL)
 
 class LoginData(BaseModel):
     username: str
@@ -25,17 +26,35 @@ class LoginData(BaseModel):
 @router.post("/", response_description="Auth")
 async def auth(data: LoginData):
     try:
-        login = client.login(data.username, data.password)
-    except Exception as e:
+        client.login(data.username, data.password)
+
+    except requests.exceptions.HTTPError as http_err:
+        if http_err.response.status_code == 401:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"message": {
+                    "success_key": 0,
+                    "message": "Invalid username or password."
+                }}
+            )
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"message": {
+                    "success_key": 0,
+                    "message": f"HTTP error occurred: {http_err}"
+                }}
+            )
+
+    except requests.exceptions.ConnectionError:
         return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"message": {
                 "success_key": 0,
-                 "message": "Authentication Error!"
+                "message": "Unable to connect to Frappe server. Please try again later."
             }}
         )
 
-    api_generate = await generate_keys(data.username)
     user = client.get_doc('User', data.username)
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -50,24 +69,12 @@ async def auth(data: LoginData):
         content={"message": {
             "success_key": 1,
             "message": "Authentication success",
-            "api_key": user.get("api_key"),
-            "api_secret": api_generate,
             "username": user.get("username"),
             "email": user.get("email"),
             "roles":[r.get("role") for r in user.get("roles")],
             "token":f"bearer {access_token}"
         }}
     )
-
-async def generate_keys(username: str):
-    user_details = client.get_doc('User', username)
-    api_secret = generate_hash(length=15)
-    if not user_details.get("api_key"):
-        api_key = generate_hash(length=15)
-        user_details["api_key"] = api_key
-    user_details['api_secret'] = api_secret
-    client.update(user_details)
-    return api_secret
 
 def generate_hash(txt: str | None = None, length: int = 56) -> str:
     """Generate random hash using best available randomness source."""
