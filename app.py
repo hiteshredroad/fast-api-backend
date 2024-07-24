@@ -2,6 +2,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.invoice import router as invoice_router
+from routers.auth.auth import router as auth_router
+
 
 app = FastAPI()
 
@@ -23,3 +25,4 @@ app.add_middleware(
 
 # Include the invoice router
 app.include_router(invoice_router, prefix="/invoices", tags=["invoices"])
+app.include_router(auth_router,prefix="/auth",tags=["auth"])
