@@ -49,7 +49,7 @@ class FrappeClient(object):
 	def __exit__(self, *args, **kwargs):
 		self.logout()
 
-	def login(self, username, password):
+	async def login(self, username, password):
 		r = self.session.post(self.url, data={
 			'cmd': 'login',
 			'usr': username,

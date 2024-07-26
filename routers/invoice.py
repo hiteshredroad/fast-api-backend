@@ -9,7 +9,8 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime,timezone,timedelta
-from routers.utils import verify_token
+# from routers.utils import verify_token
+from routers.auth.auth import get_current_user
 
 
 # https://fastapi.tiangolo.com/tutorial/
@@ -98,7 +99,7 @@ async def generate_invoice_number():
     status_code=status.HTTP_201_CREATED,
     response_model_by_alias=False,
 )
-async def create_invoice(invoice: InvoiceModel = Body(...),username: str = Depends(verify_token)):
+async def create_invoice(invoice: InvoiceModel = Body(...),current_user: dict = Depends(get_current_user)):
     invoice_number = await generate_invoice_number()
     invoice.invoice_number = invoice_number
     new_invoice = await invoice_collection.insert_one(
@@ -115,7 +116,7 @@ async def create_invoice(invoice: InvoiceModel = Body(...),username: str = Depen
     response_model=InvoiceCollection,
     response_model_by_alias=False,
 )
-async def list_invoices(username: str = Depends(verify_token)):
+async def list_invoices(current_user: dict = Depends(get_current_user)):
     # sort_order = DESCENDING  # or ASCENDING for ascending order
     # invoices = await invoice_collection.find().sort("created_at", sort_order).to_list(1000)
     # return InvoiceCollection(invoices=invoices)
@@ -132,7 +133,7 @@ async def list_invoices(username: str = Depends(verify_token)):
     response_model=InvoiceCollection,
     response_model_by_alias=False,
 )
-async def list_pagination_invoice(skip: int = 0, limit: int = 10,username: str = Depends(verify_token)):
+async def list_pagination_invoice(skip: int = 0, limit: int = 10,current_user: dict = Depends(get_current_user)):
     return InvoiceCollection(invoices=await invoice_collection.find(skip=skip, limit=limit).to_list(limit-skip))
 
 @router.get(
@@ -141,7 +142,7 @@ async def list_pagination_invoice(skip: int = 0, limit: int = 10,username: str =
     response_model=InvoiceModel,
     response_model_by_alias=False,
 )
-async def show_invoice(invoice_number: str,username: str = Depends(verify_token)):
+async def show_invoice(invoice_number: str,current_user: dict = Depends(get_current_user)):
     if (
         invoice := await invoice_collection.find_one({"invoice_number": invoice_number})
     ) is not None:
@@ -154,7 +155,7 @@ async def show_invoice(invoice_number: str,username: str = Depends(verify_token)
     response_model=InvoiceModel,
     response_model_by_alias=False,
 )
-async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body(...),username: str = Depends(verify_token)):
+async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body(...),current_user: dict = Depends(get_current_user)):
     invoice = {
         k: v for k, v in invoice.model_dump(by_alias=True).items() if v is not None
     }
@@ -173,7 +174,7 @@ async def update_invoice(invoice_number: str, invoice: UpdateInvoiceModel = Body
     raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
 
 @router.delete("/{invoice_number}", response_description="Delete an invoice")
-async def delete_invoice(invoice_number: str,username: str = Depends(verify_token)):
+async def delete_invoice(invoice_number: str,current_user: dict = Depends(get_current_user)):
     delete_result = await invoice_collection.delete_one({"invoice_number": invoice_number})
     if delete_result.deleted_count == 1:
         return JSONResponse(

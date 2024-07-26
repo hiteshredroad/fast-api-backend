@@ -1,7 +1,9 @@
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException, Security,Cookie,status,Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
+from jose import JWTError,jwt
 from decouple import config
+from typing import Optional,Union
+from routers.auth.auth import client
 
 SECRET_KEY = config('SECRET_KEY')
 ALGORITHM = config('ALGORITHM',default = "HS256")
