@@ -8,11 +8,17 @@ from datetime import datetime, timedelta, timezone
 import requests
 from decouple import config
 from typing import Optional,Union
+import uuid
+
+from database import invoicedb as db
+
+session_collection = db.get_collection("sessions")
 
 SECRET_KEY = config('SECRET_KEY')
 ALGORITHM = config('ALGORITHM',default = "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 FRAPPE_URL = config('FRAPPE_URL')
+
 
 
 router = APIRouter()
@@ -55,39 +61,46 @@ async def auth(response: Response, form_data: OAuth2PasswordRequestForm = Depend
 
     user = client.get_doc('User', form_data.username)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": form_data.username}, expires_delta=access_token_expires
-    )
+    # Create a session for the user
+    session_id = str(uuid.uuid4())
 
-    response.set_cookie(
-        key="access_token", 
-        value=access_token, 
-        httponly=True, 
-        max_age=1800, 
-        expires=1800,
-        secure=True,  # Use this in production with HTTPS
-        samesite="lax"
-    )
-    
-    return {"message": {
-        "status_code":status.HTTP_200_OK,
-        "success_key": 1,
-        "message": "Login successful",
+    session_data = {
+        "session_id": session_id,
         "username": user.get("username"),
         "email": user.get("email"),
-        "roles":[r.get("role") for r in user.get("roles")],
-    }}
-  
+        "roles": [r.get("role") for r in user.get("roles")],
+        "created_at": datetime.now(timezone.utc),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=30)  # 30 minutes expiration
+    }
+    
+    await session_collection.insert_one(session_data)
+
+
+    response.set_cookie(
+        key="session_id",
+        value=session_id,
+        httponly=True,
+        max_age=1800,  # 30 minutes
+        expires=1800,
+        # secure=True,  # Use this in production with HTTPS
+        samesite="lax"
+    )
+    return {"message": "Login successful"}
+
 
 
 
 @router.post("/logout", response_description="logout")
-async def logout(response: Response):
-    response.delete_cookie("access_token")
+async def logout(response: Response, session_id: str = Cookie(None)):
+    if session_id:
+        await session_collection.delete_one({"session_id": session_id})
+    response.delete_cookie("session_id")
+    client.logout()
     return {"message": "Logout successful"}
 
 
+
+# create jwt auth
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -97,24 +110,3 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-async def get_current_user(access_token: Union[str, None] = Cookie(None)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    if not access_token:
-        raise credentials_exception
-    try:
-        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if not username:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    user = client.get_doc('User', username)  # Assuming this is how you get user data
-    if user is None:
-        raise credentials_exception
-    return True

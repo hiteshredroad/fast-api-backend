@@ -9,8 +9,8 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime,timezone,timedelta
-# from routers.utils import verify_token
-from routers.auth.auth import get_current_user
+from routers.utils import verify_token,get_current_user
+# from routers.auth.auth import get_current_user
 
 
 # https://fastapi.tiangolo.com/tutorial/
