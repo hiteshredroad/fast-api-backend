@@ -82,9 +82,10 @@ async def auth(response: Response, form_data: OAuth2PasswordRequestForm = Depend
         httponly=True,
         max_age=1800,  # 30 minutes
         expires=1800,
-        # secure=True,  # Use this in production with HTTPS
+        secure=True,  # Use this in production with HTTPS
         samesite="lax"
     )
+
     return {"message": "Login successful"}
 
 

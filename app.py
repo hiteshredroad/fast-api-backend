@@ -1,6 +1,8 @@
 import os
 import asyncio
 from fastapi import FastAPI,Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +43,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+templates = Jinja2Templates(directory="../InvoiceApp_React/build")
+app.mount('/static', StaticFiles(directory="../InvoiceApp_React/build/static"), 'static')
+
 # frontend DNS
 origins = [
     "http://localhost",
@@ -67,7 +72,14 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 
+
 # Include the invoice router
-app.include_router(invoice_router, prefix="/invoices", tags=["invoices"])
-app.include_router(auth_router,prefix="/auth",tags=["auth"])
+app.include_router(invoice_router, prefix="/api/invoices", tags=["invoices"])
+app.include_router(auth_router,prefix="/api/auth",tags=["auth"])
+
+
+@app.get("/{rest_of_path:path}")
+async def react_app(req: Request, rest_of_path: str):
+    print(f'Rest of path: {rest_of_path}')
+    return templates.TemplateResponse('index.html', { 'request': req })
 
