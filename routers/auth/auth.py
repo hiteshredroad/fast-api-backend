@@ -1,13 +1,15 @@
-from fastapi import FastAPI, APIRouter, Body, HTTPException, status,Response, Cookie,Depends
+import os
+from fastapi import FastAPI, APIRouter, Body, HTTPException, status,Response, Cookie,Depends,BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,FileResponse
 from pydantic import BaseModel
 from .frappeclient import FrappeClient
 from jose import JWTError,jwt
 from datetime import datetime, timedelta, timezone
 import requests
 from decouple import config
-from typing import Optional,Union
+from typing import Optional,Union,List
+from routers.utils import create_backup
 import uuid
 
 from database import invoicedb as db
@@ -79,11 +81,13 @@ async def auth(response: Response, form_data: OAuth2PasswordRequestForm = Depend
     response.set_cookie(
         key="session_id",
         value=session_id,
-        httponly=True,
+        httponly=False,
         max_age=1800,  # 30 minutes
         expires=1800,
-        secure=True,  # Use this in production with HTTPS
-        samesite="lax"
+        secure=False,  # Use this in production with HTTPS
+        samesite="lax",
+        # domain=".example.com",  # Ensure this is set correctly
+        path="/",  # This can be adjusted as needed
     )
 
     return {"message": "Login successful"}
@@ -111,3 +115,40 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+@router.post("/backup")
+async def backup_database(background_tasks: BackgroundTasks):
+    background_tasks.add_task(create_backup)
+    return {"message": "Backup process started"}
+
+
+@router.get("/backups", response_model=List[str])
+async def list_backups():
+    current_file_path = os.path.abspath(__file__)
+    current_directory = current_file_path
+    while os.path.basename(current_directory) != 'fast-api-backend':
+        current_directory = os.path.dirname(current_directory)
+
+    backup_dir = os.path.join(current_directory, 'backups')
+    
+    if not os.path.exists(backup_dir):
+        return []
+    
+    backups = [f for f in os.listdir(backup_dir) if f.endswith('.gz')]
+    return sorted(backups, reverse=True)  # Most recent first
+
+@router.get("/backups/{filename}")
+async def download_backup(filename: str):
+    current_file_path = os.path.abspath(__file__)
+    current_directory = current_file_path
+    while os.path.basename(current_directory) != 'fast-api-backend':
+        current_directory = os.path.dirname(current_directory)
+
+    backup_dir = os.path.join(current_directory, 'backups')
+    file_path = os.path.join(backup_dir, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Backup file not found")
+    
+    return FileResponse(file_path, media_type='application/gzip', filename=filename)

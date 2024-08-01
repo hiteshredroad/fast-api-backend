@@ -43,16 +43,26 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-templates = Jinja2Templates(directory="../InvoiceApp_React/build")
-app.mount('/static', StaticFiles(directory="../InvoiceApp_React/build/static"), 'static')
+# templates = Jinja2Templates(directory="../InvoiceApp_React/build")
+# app.mount('/static', StaticFiles(directory="../InvoiceApp_React/build/static"), 'static')
 
 # frontend DNS
 origins = [
-    "http://localhost",
-    "http://localhost:8080",
-    "http://localhost:3000"
+    # "http://localhost",
+    # "http://localhost:8080",
+    # "http://localhost:3000",
+    "http://app.example.com",  # Frontend subdomain
+    "https://app.example.com",
+    "http://app.example.local:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:8002",
+    "http://127.0.0.1:3000",
+
 ]
 
+
+
+# for jwt token
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -78,8 +88,8 @@ app.include_router(invoice_router, prefix="/api/invoices", tags=["invoices"])
 app.include_router(auth_router,prefix="/api/auth",tags=["auth"])
 
 
-@app.get("/{rest_of_path:path}")
-async def react_app(req: Request, rest_of_path: str):
-    print(f'Rest of path: {rest_of_path}')
-    return templates.TemplateResponse('index.html', { 'request': req })
+# @app.get("/{rest_of_path:path}")
+# async def react_app(req: Request, rest_of_path: str):
+#     print(f'Rest of path: {rest_of_path}')
+#     return templates.TemplateResponse('index.html', { 'request': req })
 

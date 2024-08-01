@@ -9,7 +9,7 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime,timezone,timedelta
-from routers.utils import verify_token,get_current_user
+from routers.utils import verify_token,get_current_user,check_roles
 # from routers.auth.auth import get_current_user
 
 
@@ -116,6 +116,7 @@ async def create_invoice(invoice: InvoiceModel = Body(...),current_user: dict = 
     response_model=InvoiceCollection,
     response_model_by_alias=False,
 )
+@check_roles(["admin", "HR","Employee"])
 async def list_invoices(current_user: dict = Depends(get_current_user)):
     # sort_order = DESCENDING  # or ASCENDING for ascending order
     # invoices = await invoice_collection.find().sort("created_at", sort_order).to_list(1000)
